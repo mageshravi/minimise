@@ -66,8 +66,10 @@ class Game():
 	deck = []
 	hand = {}
 	table = []
+	joker_card = None
 	open_cards = []
 	opener = None
+	active_turn = None
 
 	def __init__(self, players):
 		if not isinstance(players, list) and not isinstance(players, tuple):
@@ -95,6 +97,19 @@ class Game():
 		print "No. of cards in deck: %d" %(len(self.deck))
 
 		random.shuffle(self.deck)
+
+		# draw joker for current round
+		joker_card = self.deck.pop()
+
+		while isinstance(joker_card, JokerCard):
+			# put back the joker card, shuffle
+			self.deck.append(joker_card)
+			random.shuffle(self.deck)
+			# draw a new joker card
+			joker_card = self.deck.pop()
+
+		self.joker_card = joker_card
+
 		for player_name in self.players:
 			hand = []
 			for i in range(1,6):
@@ -108,7 +123,9 @@ class Game():
 		else:
 			self.opener += 1
 
-		game.open_cards.append(game.deck.pop())
+		self.active_turn = self.opener
+
+		self.open_cards.append(self.deck.pop())
 
 
 class GameManager():
@@ -229,14 +246,14 @@ class GameService():
 			players_collection.insert_one(player)
 
 	@staticmethod
-	def get_hand_for(player_name):
+	def get_hand_for(game_id, player_name):
 		players_collection = GameService.db.players
 
-		if players_collection.find({'name': player_name}).count() == 0:
+		players = players_collection.find({'name': player_name, 'game_id': game_id})
+		if players.count() == 0:
 			return None
 		else:
-			players_list = players_collection.find({'name': player_name})
-			return players_list[0]['hand']
+			return players[0]['hand']
 
 	@staticmethod
 	def display_player_hand(game_id, player_name):
@@ -246,21 +263,7 @@ class GameService():
 
 		for player in players_collection.find({'name': player_name, 'game_id': game_id}):
 			for card in player['hand']:
-				print "%s %s" %(card['value'], card['symbol'])
-
-		print ""
-
-# game starts here
-
-# start game
-# players = ('Nithya', 'Magesh', 'Susi', 'Raj', 'Varun', 'Kamal', 'Giri')
-# game = Game(players)
-# game.new_round()
-
-# get cards for each player
-# for player_name in players:
-# 	print GameService.get_hand_for(player_name)
-
-# print "Open card: %s" % (game.open_cards[0].__unicode__())
-# print "Opener: %s" %(game.players[game.opener])
-# print "No. of cards in deck: %d" %(len(game.deck))
+				if isinstance(card, JokerCard):
+					print "JOKER"
+				else:
+					print "%s %s" %(card['value'], card['symbol'])
