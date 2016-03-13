@@ -24,32 +24,5 @@ class CardFactory():
         card = {
             'symbol': symbol,
             'label': label,
-            'value': value
+            'value': 1
         }
-
-        return card
-
-
-class JokerCardFactory():
-
-    @staticmethod
-    def create():
-        return {
-            'symbol': 'JOKER',
-            'label': 'JOKER',
-            'value': 0
-        }
-
-
-class PackFactory():
-
-    @staticmethod
-    def create():
-        list_cards = []
-        for symbol in Card.valid_symbols:
-            for label in Card.valid_labels:
-                list_cards.append(CardFactory.create(symbol, value))
-
-        # add two joker cards
-        list_cards += [JokerCardFactory.create(), JokerCardFactory.create()]
-        return list_cards

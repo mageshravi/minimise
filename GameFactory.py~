@@ -1,0 +1,71 @@
+class GameFactory():
+
+    @staticmethod
+    def create(players):
+        # new dict
+        game = {
+            'game_id': None,
+            'players': None,
+            'no_of_packs': 0,
+            'deck': [],
+            'hand': {},
+            'table': [],
+            'joker_card': None,
+            'open_cards': [],
+            'opener': None,
+            'active_turn': None
+        }
+
+        # set players
+        game['players'] = players
+
+        no_of_packs = len(players) / 5
+        if no_of_packs % 5 != 0:
+            no_of_packs += 1
+        game['no_of_packs'] = no_of_packs
+        print "No. of packs: %d" % (no_of_packs)
+
+        GameManager.save(game)
+        print "Game ID: %s" % (str(game['game_id']))
+
+        return game
+
+    @staticmethod
+    def reset_deck(game):
+        game['deck'] = game['table']
+        random.shuffle(game['deck'])
+
+    @staticmethod
+    def new_round(game):
+
+        # prepare deck
+        game['deck'] = []
+        for pack in range(1, game['no_of_packs'] + 1):
+            game['deck'] += Pack.get()
+        print "No. of cards in deck %d" % (len(game['deck']))
+
+        # shuffle cards in deck
+        random.shuffle(game['deck'])
+
+        # draw joker for current round
+        joker_card = game['deck'].pop()
+
+        while joker_card['symbol'] == 'JOKER':
+            # put back the joker_card, shuffle
+            game['deck'].append(joker_card)
+            random.shuffle(game['deck'])
+            # draw new joker card
+            joker_card = game['deck'].pop()
+
+        game['joker_card'] = joker_card
+
+        game['hand'] = {}
+        for player_name in game['players']:
+            hand = []
+            for i in range(1,6):
+                card = game['deck'].pop()
+                hand.append(card)
+            GameService.save_player_hand(game['game_id'], player_name, hand)
+            game['hand']['player_name'] = hand
+
+        if game['opener'] is None:
