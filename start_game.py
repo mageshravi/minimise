@@ -1,4 +1,4 @@
-from minimise import *
+from minimise.game import *
 
 # start game
 players = ('Nithya', 'Magesh', 'Susi', 'Raj', 'Varun', 'Kamal', 'Giri')

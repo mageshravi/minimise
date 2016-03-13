@@ -1,63 +1,12 @@
 import random
-import datetime
-
-from pymongo import MongoClient
 
 __all__ = [
-	'Card',
-	'Pack',
 	'Game',
 	'GameManager',
 	'GameService'
 ]
 
-class Card():
-	valid_symbols = ('SPADE', 'CLOVER', 'HEARTS', 'DIAMONDS')
-	valid_labels = ('A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K')
-	spl_values = {
-		'A': 1,
-		'J': 11,
-		'Q': 12,
-		'K': 13
-	}
-	symbol = None
-	label = None
-	value = None
-
-	def __init__(self, symbol, label):
-		if symbol not in self.valid_symbols:
-			raise TypeError("Not a valid symbol")
-		if label not in self.valid_labels:
-			raise ValueError("Invalid label: %s" %(label))
-		self.symbol = symbol
-		self.label = label
-		if label in ('A', 'J', 'Q', 'K'):
-			self.value = self.spl_values[label]
-		else:
-			self.value = label
-
-	def __unicode__(self):
-		return '%s %s' %(self.value, self.symbol)
-
-
-class JokerCard(Card):
-
-	def __init__(self):
-		self.symbol = 'JOKER'
-		self.value = 0
-
-
-class Pack():
-
-	@staticmethod
-	def get():
-		list_cards = []
-		for symbol in Card.valid_symbols:
-			for value in Card.valid_labels:
-				list_cards.append(Card(symbol, value))
-		list_cards += [JokerCard(), JokerCard()]
-		return list_cards
-
+from card import *
 
 class Game():
 	game_id = None
@@ -82,8 +31,7 @@ class Game():
 		self.no_of_packs = no_of_packs
 		print "No. of packs: %d" %(no_of_packs)
 
-		game_service = GameService()
-		game_service.save(self)
+		GameManager.save(self)
 		print "Game ID: %s" % (str(self.game_id))
 
 	def reset_deck(self):
@@ -115,7 +63,7 @@ class Game():
 			for i in range(1,6):
 				card = self.deck.pop()
 				hand.append(card)
-			GameService.save_player_hand(self, player_name, hand)
+			GameService.save_player_hand(self.game_id, player_name, hand)
 			self.hand[player_name] = hand
 
 		if self.opener is None:
@@ -124,14 +72,61 @@ class Game():
 			self.opener += 1
 
 		self.active_turn = self.opener
-
 		self.open_cards.append(self.deck.pop())
+
+		# save to DB
+		GameManager.save(self)
 
 
 class GameManager():
 
+	@staticmethod
+	def save(game):
+		if not isinstance(game, Game):
+			raise TypeError("game is not an instance of Game")
+
+		# TODO convert objects to dictionaries
+
+		# GameService.save(game)
+
+	@staticmethod
+	def get_hand_for(game_id, player_name):
+		"""
+		Returns cards in hand for player
+		returns: list of cards (objects)
+		"""
+		player_hand_dict = GameService.get_hand_for(game_id, player_name)
+		player_hand = []
+		for card_dict in player_hand_dict:
+			if card_dict['symbol'] == 'JOKER':
+				card = JokerCard()
+			else:
+				card = Card(card_dict['symbol'], card_dict['label'])
+			player_hand.append(card)
+		return player_hand
+
+	@staticmethod
+	def are_cards_in_hand(player_hand, cards_list):
+		"""
+		Validates if cards in list exist in player's hand
+		returns: True
+		raises: RuntimeError Card not in player's hand
+		"""
+		for card in cards_list:
+			if any(card_in_hand.symbol == card.symbol \
+				and card_in_hand.value == card.value \
+				for card_in_hand in player_hand):
+				continue
+			else:
+				raise RuntimeError("Card not in player's hand")
+		return True
+
 	@classmethod
 	def validate_lay(cls, cards_list, joker_card):
+		"""
+		Validates if the given list of cards can be laid together
+		returns: boolean
+		"""
 		no_of_cards = len(cards_list)
 
 		if no_of_cards == 0:
@@ -211,43 +206,65 @@ class GameManager():
 		return True
 
 
+from pymongo import MongoClient
+
+
 class GameService():
+
 	client = MongoClient()
 	db = client.minimize_db
 
-	@staticmethod
-	def save(game):
-		if not isinstance(game, Game):
-			raise TypeError("game is not an instance of Game")
-		games_collection = GameService.db.games
+	@classmethod
+	def find(cls, game_id):
+		games_collection = cls.db.games
+		games = games_collection.find({'_id': game_id})
+		if games.count() == 0:
+			raise RuntimeError("Game not found")
+		return games[0]
+
+	@classmethod
+	def save(cls, game):
+		games_collection = cls.db.games
 		if game.game_id is None:
 			game.game_id = games_collection.insert_one(game.__dict__).inserted_id
 		else:
-			games_collection.update_one({'_id': game.game_id}, {'$set': game.__dict__})
+			games_collection.update_one({'_id': game.game_id}, {'$set', game.__dict__})
 
 	@staticmethod
-	def save_player_hand(game, player_name, hand):
+	def save_player_hand(game_id, player_name, hand):
 		players_collection = GameService.db.players
 
+		# primary key
+		pk = {
+			'name': player_name,
+			'game_id':  game_id
+		}
+
+		# row a.k.a record
 		player = {
 			'name': player_name,
-			'game_id':  game.game_id
+			'game_id':  game_id
 		}
+
 		# convert list of objects to list of dictionaries
 		cards_list = []
 		for card in hand:
 			cards_list.append(card.__dict__)
 		player['hand'] = cards_list
 
-		# find by name, then insert or update
-		if players_collection.find({'name': player_name}).count() > 0:
-			players_collection.update_one({'name': player_name}, {'$set': player})
+		# find by pk, then insert or update
+		if players_collection.find(pk).count() > 0:
+			players_collection.update_one(pk, {'$set': player})
 		else:
 			players_collection.insert_one(player)
 
-	@staticmethod
-	def get_hand_for(game_id, player_name):
-		players_collection = GameService.db.players
+	@classmethod
+	def get_hand_for(cls, game_id, player_name):
+		"""
+		Returns cards in hand for player
+		returns: list of cards (dictionaries)
+		"""
+		players_collection = cls.db.players
 
 		players = players_collection.find({'name': player_name, 'game_id': game_id})
 		if players.count() == 0:
@@ -255,15 +272,15 @@ class GameService():
 		else:
 			return players[0]['hand']
 
-	@staticmethod
-	def display_player_hand(game_id, player_name):
-		players_collection = GameService.db.players
+	@classmethod
+	def display_player_hand(cls, game_id, player_name):
+		players_collection = cls.db.players
 
 		print "Player: %s" %(player_name)
 
 		for player in players_collection.find({'name': player_name, 'game_id': game_id}):
 			for card in player['hand']:
-				if isinstance(card, JokerCard):
+				if card['symbol'] == 'JOKER':
 					print "JOKER"
 				else:
-					print "%s %s" %(card['value'], card['symbol'])
+					print "%s %s" %(card['label'], card['symbol'])
