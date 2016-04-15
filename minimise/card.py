@@ -2,24 +2,24 @@ class CardFactory():
     valid_symbols = ('SPADE', 'CLOVER', 'HEARTS', 'DIAMONDS')
     valid_labels = ('A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K')
     spl_values = {
-	'A': 1,
-	'J': 11,
-	'Q': 12,
-	'K': 13
+        'A': 1,
+        'J': 11,
+        'Q': 12,
+        'K': 13
     }
 
-    @staticmethod
-    def create(symbol, value):
+    @classmethod
+    def create(cls, symbol, label):
         
         # validate symbol and value
-        if symbol not in self.valid_symbols:
+        if symbol not in cls.valid_symbols:
             raise TypeError("Not a valid symbol")
-        if label not in self.valid_labels:
-	    raise ValueError("Invalid label: %s" %(label))
+        if label not in cls.valid_labels:
+            raise ValueError("Invalid label: %s" % (label))
 
         value = label
         if label in ('A', 'J', 'Q', 'K'):
-            value = self.spl_values[label]
+            value = cls.spl_values[label]
 
         card = {
             'symbol': symbol,
@@ -46,9 +46,9 @@ class PackFactory():
     @staticmethod
     def create():
         list_cards = []
-        for symbol in Card.valid_symbols:
-            for label in Card.valid_labels:
-                list_cards.append(CardFactory.create(symbol, value))
+        for symbol in CardFactory.valid_symbols:
+            for label in CardFactory.valid_labels:
+                list_cards.append(CardFactory.create(symbol, label))
 
         # add two joker cards
         list_cards += [JokerCardFactory.create(), JokerCardFactory.create()]
