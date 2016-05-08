@@ -1,0 +1,54 @@
+@import "_vars.scss";
+
+.felt {
+  background-image: url("../images/felt.png");
+  background-size: 500px auto;
+  background-repeat: repeat;
+
+  @media (-webkit-min-device-pixel-ratio: 2) {
+    background-image: url("../images/felt_2X.png");
+  }
+}
+
+.deck {
+  margin: 15px 0;
+
+  .card + .card {
+    margin-left: -160px;
+  }
+}
+
+ul.cards-in-hand {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  justify-content: center;
+
+  li.card-position {
+    margin-right: 5px;
+    width: $card-width;
+    height: $card-height;
+    float: left;
+    
+    transition: all .3s linear;
+    box-sizing: border-box;
+  }
+  li.on-drag {
+    opacity: .6;
+    transition: all .3s linear;
+  }
+  li.push-left {
+    padding-right: $card-width;
+    width: (2 * $card-width);
+    transition: all .3s linear;
+  }
+  li.push-right {
+    padding-left: $card-width;
+    width: (2 * $card-width);
+    transition: all .3s linear;
+  }
+}
+ul.cards-in-hand:after {
+  clear: both;
+}
